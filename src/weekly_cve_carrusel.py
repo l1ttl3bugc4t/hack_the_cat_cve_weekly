@@ -13,7 +13,7 @@ import textwrap
 import os
 
 import os
-FUENTE = os.path.expanduser("~/.fonts/Karla.ttf")
+FUENTE = "assets/Karla.ttf"
 COLOR_TEXTO = (0, 255, 0)
 COLOR_FONDO = (10, 10, 10)
 COLOR_BORDE = (0, 255, 0)
