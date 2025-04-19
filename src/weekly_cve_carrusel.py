@@ -169,6 +169,16 @@ def generar_carrusel():
 
     promedio = sum(scores) / len(scores) if scores else 0
     crear_slide_final(len(cves), promedio)
+# Hacer commit y push automático del output generado
+    import subprocess
+    try:
+        subprocess.run(["git", "config", "--global", "user.name", "github-actions"], check=True)
+        subprocess.run(["git", "config", "--global", "user.email", "actions@github.com"], check=True)
+        subprocess.run(["git", "add", OUTPUT_DIR], check=True)
+        subprocess.run(["git", "commit", "-m", "📤 Auto: Añadir carrusel semanal de CVEs"], check=True)
+        subprocess.run(["git", "push"], check=True)
+    except Exception as e:
+        print("⚠️ Error al hacer push del output:", e)
 # Exportar todas las imágenes generadas como un PDF
     from fpdf import FPDF
     imagenes = sorted([f for f in os.listdir(OUTPUT_DIR) if f.endswith(".png")])
