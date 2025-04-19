@@ -6,7 +6,6 @@ Este proyecto genera un carrusel semanal con los CVEs más relevantes usando dat
 
 - `src/`: Contiene el script principal.
 - `assets/`: Logos y fuente utilizada para los slides.
-- `output/`: Carpeta de salida (se recomienda ignorarla en Git).
 
 ## Requisitos
 
