@@ -1,26 +1,27 @@
 
 # Hack the Cat - CVE Carrusel Generator 🐱
-# Script FINAL COMPLETO con:
-# - etiquetas visibles
-# - espaciado ajustado
-# - centrado vertical corregido
-# - slide de introducción y resumen
+# Versión regenerada desde cero con:
+# - Exportación de slides y PDF
+# - Push automático al repositorio
+# - Logo obligatorio
+# - Márgenes simétricos y tipografía ajustada
 
 import requests
 from datetime import datetime, timedelta
 from PIL import Image, ImageDraw, ImageFont
+from fpdf import FPDF
 import textwrap
 import os
+import subprocess
 
-import os
 FUENTE = "assets/Karla.ttf"
+LOGO_PATH = os.path.abspath("assets/hack_the_cat_logo_resized.png")
 COLOR_TEXTO = (0, 255, 0)
 COLOR_FONDO = (10, 10, 10)
 COLOR_BORDE = (0, 255, 0)
 TAMANO_IMG = (1080, 1080)
 MARGEN_IZQUIERDO = 60
 MARGEN_DERECHO = 60
-LOGO_PATH = "hack_the_cat_logo_resized.png"
 LOGO_SIZE = (120, 120)
 
 hoy = datetime.utcnow()
@@ -58,13 +59,14 @@ def crear_slide_intro():
     total_height = sum(draw.textbbox((0, 0), t[0], font=t[1])[3] + 40 for t in textos)
     y = (TAMANO_IMG[1] - total_height) // 2
     for linea, font in textos:
-        draw.text((MARGEN_IZQUIERDO, y), linea, font=font, fill=COLOR_TEXTO)
-        y += draw.textbbox((0, 0), linea, font=font)[3] + 40
-    try:
-        logo = Image.open(LOGO_PATH).convert("RGBA").resize((160, 160))
-        img.paste(logo, (TAMANO_IMG[0] - 180, TAMANO_IMG[1] - 180), logo)
-    except:
-        pass
+        bbox = draw.textbbox((0, 0), linea, font=font)
+        x = (TAMANO_IMG[0] - (bbox[2] - bbox[0])) // 2
+        draw.text((x, y), linea, font=font, fill=COLOR_TEXTO)
+        y += bbox[3] + 40
+    if not os.path.isfile(LOGO_PATH):
+        raise FileNotFoundError(f"⚠️ No se encontró el logo en {LOGO_PATH}")
+    logo = Image.open(LOGO_PATH).convert("RGBA").resize((160, 160))
+    img.paste(logo, (TAMANO_IMG[0] - 180, TAMANO_IMG[1] - 180), logo)
     draw.rectangle([10, 10, TAMANO_IMG[0] - 10, TAMANO_IMG[1] - 10], outline=COLOR_BORDE, width=4)
     img.save(os.path.join(OUTPUT_DIR, "00_intro_slide.png"))
 
@@ -78,18 +80,19 @@ def crear_slide_final(total, promedio):
         (f"CVEs analizados: {total}", font_small),
         (f"Promedio CVSS: {promedio:.2f}", font_small),
         ("Fuente: nvd.nist.gov", font_small),
-        ("Nos vemos la próxima semana. Hack the Cat <3", font_small)
+        ("Nos vemos la próxima semana. Hack the Cat 🐾", font_small)
     ]
     total_height = sum(draw.textbbox((0, 0), t[0], font=t[1])[3] + 40 for t in textos)
     y = (TAMANO_IMG[1] - total_height) // 2
     for linea, font in textos:
-        draw.text((MARGEN_IZQUIERDO, y), linea, font=font, fill=COLOR_TEXTO)
-        y += draw.textbbox((0, 0), linea, font=font)[3] + 40
-    try:
-        logo = Image.open(LOGO_PATH).convert("RGBA").resize((160, 160))
-        img.paste(logo, (TAMANO_IMG[0] - 180, TAMANO_IMG[1] - 180), logo)
-    except:
-        pass
+        bbox = draw.textbbox((0, 0), linea, font=font)
+        x = (TAMANO_IMG[0] - (bbox[2] - bbox[0])) // 2
+        draw.text((x, y), linea, font=font, fill=COLOR_TEXTO)
+        y += bbox[3] + 40
+    if not os.path.isfile(LOGO_PATH):
+        raise FileNotFoundError(f"⚠️ No se encontró el logo en {LOGO_PATH}")
+    logo = Image.open(LOGO_PATH).convert("RGBA").resize((160, 160))
+    img.paste(logo, (TAMANO_IMG[0] - 180, TAMANO_IMG[1] - 180), logo)
     draw.rectangle([10, 10, TAMANO_IMG[0] - 10, TAMANO_IMG[1] - 10], outline=COLOR_BORDE, width=4)
     img.save(os.path.join(OUTPUT_DIR, f"{total+1:02d}_summary_slide.png"))
 
@@ -126,12 +129,10 @@ def crear_imagen(texto, index, fecha_publicacion):
         y_text += 40
 
     draw.text((MARGEN_IZQUIERDO, y_text), fecha_publicacion, font=font_fecha, fill=COLOR_TEXTO)
-
-    try:
-        logo = Image.open(LOGO_PATH).convert("RGBA").resize(LOGO_SIZE)
-        img.paste(logo, (TAMANO_IMG[0] - LOGO_SIZE[0] - 20, TAMANO_IMG[1] - LOGO_SIZE[1] - 20), logo)
-    except:
-        pass
+    if not os.path.isfile(LOGO_PATH):
+        raise FileNotFoundError(f"⚠️ No se encontró el logo en {LOGO_PATH}")
+    logo = Image.open(LOGO_PATH).convert("RGBA").resize(LOGO_SIZE)
+    img.paste(logo, (TAMANO_IMG[0] - LOGO_SIZE[0] - MARGEN_DERECHO, TAMANO_IMG[1] - LOGO_SIZE[1] - 20), logo)
     draw.rectangle([10, 10, TAMANO_IMG[0] - 10, TAMANO_IMG[1] - 10], outline=COLOR_BORDE, width=4)
     img.save(os.path.join(OUTPUT_DIR, f"{index:02d}_cve_slide.png"))
 
@@ -169,8 +170,8 @@ def generar_carrusel():
 
     promedio = sum(scores) / len(scores) if scores else 0
     crear_slide_final(len(cves), promedio)
-# Generar PDF con las slides generadas
-    from fpdf import FPDF
+
+    # Generar PDF con las imágenes
     imagenes = sorted([f for f in os.listdir(OUTPUT_DIR) if f.endswith(".png")])
     pdf = FPDF(orientation='P', unit='pt', format=[1080, 1080])
     for imagen in imagenes:
@@ -178,8 +179,7 @@ def generar_carrusel():
         pdf.image(os.path.join(OUTPUT_DIR, imagen), x=0, y=0, w=1080, h=1080)
     pdf.output(os.path.join(OUTPUT_DIR, "carrusel_cvEs.pdf"))
 
-    # Hacer commit y push automático del output generado
-    import subprocess
+    # Hacer push al repositorio
     try:
         subprocess.run(["git", "config", "--global", "user.name", "github-actions"], check=True)
         subprocess.run(["git", "config", "--global", "user.email", "actions@github.com"], check=True)
@@ -188,14 +188,6 @@ def generar_carrusel():
         subprocess.run(["git", "push"], check=True)
     except Exception as e:
         print("⚠️ Error al hacer push del output:", e)
-# Exportar todas las imágenes generadas como un PDF
-    from fpdf import FPDF
-    imagenes = sorted([f for f in os.listdir(OUTPUT_DIR) if f.endswith(".png")])
-    pdf = FPDF(orientation='P', unit='pt', format=[1080, 1080])
-    for imagen in imagenes:
-        pdf.add_page()
-        pdf.image(os.path.join(OUTPUT_DIR, imagen), x=0, y=0, w=1080, h=1080)
-    pdf.output(os.path.join(OUTPUT_DIR, "carrusel_cvEs.pdf"))
 
 if __name__ == "__main__":
     generar_carrusel()
