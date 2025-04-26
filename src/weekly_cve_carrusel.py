@@ -1,6 +1,5 @@
-
 # Hack the Cat - CVE Carrusel Generator 🐱
-# Regenerado completo, con todas las funciones
+# Generador completo de slides + publicación automática en LinkedIn
 
 import requests
 from datetime import datetime, timedelta
@@ -9,7 +8,9 @@ from fpdf import FPDF
 import textwrap
 import os
 import subprocess
+import time
 
+# Configuración general
 FUENTE = "assets/Karla.ttf"
 LOGO_PATH = os.path.abspath("assets/hack_the_cat_logo_resized.png")
 COLOR_TEXTO = (0, 255, 0)
@@ -20,6 +21,7 @@ MARGEN_IZQUIERDO = 60
 MARGEN_DERECHO = 60
 LOGO_SIZE = (120, 120)
 
+# Fechas
 hoy = datetime.utcnow()
 hace_7_dias = hoy - timedelta(days=7)
 fecha_inicio_str = hace_7_dias.strftime("%d_%m")
@@ -134,6 +136,103 @@ def crear_imagen(texto, index, fecha_publicacion):
     draw.rectangle([10, 10, TAMANO_IMG[0] - 10, TAMANO_IMG[1] - 10], outline=COLOR_BORDE, width=4)
     img.save(os.path.join(OUTPUT_DIR, f"{index:02d}_cve_slide.png"))
 
+def postear_en_linkedin():
+    import requests
+    import time
+
+    ACCESS_TOKEN = os.getenv('ACCESS_TOKEN')
+    AUTHOR_URN = os.getenv('AUTHOR_URN')
+
+    if not ACCESS_TOKEN or not AUTHOR_URN:
+        print("❌ Faltan variables de entorno ACCESS_TOKEN o AUTHOR_URN.")
+        return
+
+    imagenes = sorted([
+        os.path.join(OUTPUT_DIR, img)
+        for img in os.listdir(OUTPUT_DIR)
+        if img.endswith('.png')
+    ])
+
+    if not imagenes:
+        print("⚠️ No hay imágenes para postear en LinkedIn.")
+        return
+
+    def registrar_upload(access_token, author_urn):
+        url = "https://api.linkedin.com/v2/assets?action=registerUpload"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+            "X-Restli-Protocol-Version": "2.0.0"
+        }
+        body = {
+            "registerUploadRequest": {
+                "owner": author_urn,
+                "recipes": ["urn:li:digitalmediaRecipe:feedshare-image"],
+                "serviceRelationships": [
+                    {
+                        "identifier": "urn:li:userGeneratedContent",
+                        "relationshipType": "OWNER"
+                    }
+                ]
+            }
+        }
+        response = requests.post(url, headers=headers, json=body)
+        if response.status_code == 200:
+            upload_info = response.json()
+            upload_url = upload_info['value']['uploadMechanism']['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest']['uploadUrl']
+            asset = upload_info['value']['asset']
+            return upload_url, asset
+        else:
+            raise Exception(f"❌ Error al registrar upload: {response.status_code} {response.text}")
+
+    def subir_imagen(upload_url, image_path):
+        headers = {"Content-Type": "application/octet-stream"}
+        with open(image_path, "rb") as f:
+            response = requests.put(upload_url, headers=headers, data=f)
+        if response.status_code not in [200, 201]:
+            raise Exception(f"❌ Error al subir imagen: {response.status_code} {response.text}")
+
+    def publicar_carrusel(access_token, author_urn, asset_list, texto_post):
+        url = "https://api.linkedin.com/v2/ugcPosts"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+            "X-Restli-Protocol-Version": "2.0.0"
+        }
+        media = [{"status": "READY", "media": asset} for asset in asset_list]
+        payload = {
+            "author": author_urn,
+            "lifecycleState": "PUBLISHED",
+            "specificContent": {
+                "com.linkedin.ugc.ShareContent": {
+                    "shareCommentary": {"text": texto_post},
+                    "shareMediaCategory": "IMAGE",
+                    "media": media
+                }
+            },
+            "visibility": {
+                "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
+            }
+        }
+        response = requests.post(url, headers=headers, json=payload)
+        if response.status_code == 201:
+            print("✅ Post con imágenes publicado exitosamente en LinkedIn!")
+        else:
+            raise Exception(f"❌ Error al publicar post: {response.status_code} {response.text}")
+
+    print("🔵 Subiendo imágenes a LinkedIn...")
+    asset_ids = []
+    for img_path in imagenes:
+        print(f"🔵 Registrando y subiendo: {img_path}")
+        upload_url, asset = registrar_upload(ACCESS_TOKEN, AUTHOR_URN)
+        subir_imagen(upload_url, img_path)
+        asset_ids.append(asset)
+        time.sleep(1)
+
+    print("🟣 Publicando carrusel en LinkedIn...")
+    texto_post = "🚀 ¡Ya está disponible el resumen semanal de CVEs! 🔥\n\n#HackTheCat #Ciberseguridad #CVEs"
+    publicar_carrusel(ACCESS_TOKEN, AUTHOR_URN, asset_ids, texto_post)
+
 def generar_carrusel():
     cves = obtener_cves()
     if not cves:
@@ -154,16 +253,13 @@ def generar_carrusel():
         severity = score_data.get("baseSeverity", "N/A")
         vector = score_data.get("vectorString", "N/A")
         cwe = cve.get("weaknesses", [{}])[0].get("description", [{}])[0].get("value", "N/A")
-
         configurations = cve.get("configurations", {})
         nodes = configurations.get("nodes", []) if isinstance(configurations, dict) else []
-
         tech = ", ".join([
             cpe.get("criteria", "").split(":")[4]
             for node in nodes
             for cpe in node.get("cpeMatch", [])
         ]) or "No especificado"
-
         published = item.get("published") or cve.get("published") or "Fecha no disponible"
         published = published[:10]
 
@@ -179,7 +275,7 @@ def generar_carrusel():
     for imagen in imagenes:
         pdf.add_page()
         pdf.image(os.path.join(OUTPUT_DIR, imagen), x=0, y=0, w=1080, h=1080)
-    pdf.output(os.path.join(OUTPUT_DIR, "carrusel_cvEs.pdf"))
+    pdf.output(os.path.join(OUTPUT_DIR, "carrusel_cves.pdf"))
 
     try:
         subprocess.run(["git", "config", "--global", "user.name", "github-actions"], check=True)
@@ -189,6 +285,8 @@ def generar_carrusel():
         subprocess.run(["git", "push"], check=True)
     except Exception as e:
         print("⚠️ Error al hacer push del output:", e)
+
+    postear_en_linkedin()
 
 if __name__ == "__main__":
     generar_carrusel()
