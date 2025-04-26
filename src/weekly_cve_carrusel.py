@@ -156,7 +156,9 @@ def generar_carrusel():
         cwe = cve.get("weaknesses", [{}])[0].get("description", [{}])[0].get("value", "N/A")
         tech = ", ".join([
             cpe.get("criteria", "").split(":")[4]
-            for node in cve.get("configurations", {}).get("nodes", [])
+            configurations = cve.get("configurations", {})
+            nodes = configurations.get("nodes", []) if isinstance(configurations, dict) else []
+            for node in nodes:
             for cpe in node.get("cpeMatch", [])
         ]) or "No especificado"
         published = item.get("published") or cve.get("published") or "Fecha no disponible"
