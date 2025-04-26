@@ -1,25 +1,15 @@
-
 # Hack the Cat - CVE Carrusel Generator 🐱
-# Script FINAL COMPLETO con:
-# - etiquetas visibles
-# - espaciado ajustado
-# - centrado vertical corregido
-# - slide de introducción y resumen
+# Versión FINAL COMPLETA
 
 import requests
 from datetime import datetime, timedelta
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
 import os
-<<<<<<< HEAD
 import subprocess
-import time
+from fpdf import FPDF
 
 # === Configuración General ===
-=======
-
-import os
->>>>>>> parent of f467f5d (Update weekly_cve_carrusel.py)
 FUENTE = "assets/Karla.ttf"
 COLOR_TEXTO = (0, 255, 0)
 COLOR_FONDO = (10, 10, 10)
@@ -27,7 +17,7 @@ COLOR_BORDE = (0, 255, 0)
 TAMANO_IMG = (1080, 1080)
 MARGEN_IZQUIERDO = 60
 MARGEN_DERECHO = 60
-LOGO_PATH = "hack_the_cat_logo_resized.png"
+LOGO_PATH = "assets/hack_the_cat_logo_resized.png"
 LOGO_SIZE = (120, 120)
 
 hoy = datetime.utcnow()
@@ -38,15 +28,18 @@ OUTPUT_DIR = f"output_{fecha_inicio_str}_{fecha_fin_str}"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # === Funciones de generación de contenido ===
+
 def obtener_cves():
     inicio = hace_7_dias.strftime("%Y-%m-%dT%H:%M:%S.000Z")
     fin = hoy.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-    url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?pubStartDate={inicio}&pubEndDate={fin}&cvssV3Severity=CRITICAL&cvssV3Severity=HIGH"
+    url = (f"https://services.nvd.nist.gov/rest/json/cves/2.0?"
+           f"pubStartDate={inicio}&pubEndDate={fin}&"
+           f"cvssV3Severity=CRITICAL&cvssV3Severity=HIGH&cvssV3Severity=MEDIUM")
     headers = {"User-Agent": "HackTheCatBot/1.0"}
     try:
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
-        return response.json().get("vulnerabilities", [])[:5]
+        return response.json().get("vulnerabilities", [])
     except Exception as e:
         print(f"❌ Error al obtener los CVEs: {e}")
         return []
@@ -54,34 +47,25 @@ def obtener_cves():
 def crear_slide_intro():
     img = Image.new("RGB", TAMANO_IMG, COLOR_FONDO)
     draw = ImageDraw.Draw(img)
-    font_title = ImageFont.truetype(FUENTE, 72)
+    font_title = ImageFont.truetype(FUENTE, 64)
     font_sub = ImageFont.truetype(FUENTE, 48)
     font_phrase = ImageFont.truetype(FUENTE, 40)
     fecha = f"{hace_7_dias.strftime('%d/%m/%Y')} al {hoy.strftime('%d/%m/%Y')}"
     textos = [
-        ("CVEs más relevantes de la semana", font_title),
+        ("CVEs críticos, altos y medios más relevantes", font_title),
         (f"Del {fecha}", font_sub),
         ("Porque el primer paso para defender es conocer las amenazas.", font_phrase)
     ]
     total_height = sum(draw.textbbox((0, 0), t[0], font=t[1])[3] + 40 for t in textos)
     y = (TAMANO_IMG[1] - total_height) // 2
     for linea, font in textos:
-<<<<<<< HEAD
         bbox = draw.textbbox((0, 0), linea, font=font)
         x = (TAMANO_IMG[0] - (bbox[2] - bbox[0])) // 2
         draw.text((x, y), linea, font=font, fill=COLOR_TEXTO)
         y += bbox[3] + 40
+
     logo = Image.open(LOGO_PATH).convert("RGBA").resize((160, 160))
     img.paste(logo, (TAMANO_IMG[0] - 180, TAMANO_IMG[1] - 180), logo)
-=======
-        draw.text((MARGEN_IZQUIERDO, y), linea, font=font, fill=COLOR_TEXTO)
-        y += draw.textbbox((0, 0), linea, font=font)[3] + 40
-    try:
-        logo = Image.open(LOGO_PATH).convert("RGBA").resize((160, 160))
-        img.paste(logo, (TAMANO_IMG[0] - 180, TAMANO_IMG[1] - 180), logo)
-    except:
-        pass
->>>>>>> parent of f467f5d (Update weekly_cve_carrusel.py)
     draw.rectangle([10, 10, TAMANO_IMG[0] - 10, TAMANO_IMG[1] - 10], outline=COLOR_BORDE, width=4)
     img.save(os.path.join(OUTPUT_DIR, "00_intro_slide.png"))
 
@@ -95,27 +79,19 @@ def crear_slide_final(total, promedio):
         (f"CVEs analizados: {total}", font_small),
         (f"Promedio CVSS: {promedio:.2f}", font_small),
         ("Fuente: nvd.nist.gov", font_small),
-        ("Nos vemos la próxima semana. Hack the Cat <3", font_small)
+        ("Incluyendo CRÍTICOS, ALTOS y MEDIOS", font_small),
+        ("Nos vemos la próxima semana. Hack the Cat 🐾", font_small)
     ]
     total_height = sum(draw.textbbox((0, 0), t[0], font=t[1])[3] + 40 for t in textos)
     y = (TAMANO_IMG[1] - total_height) // 2
     for linea, font in textos:
-<<<<<<< HEAD
         bbox = draw.textbbox((0, 0), linea, font=font)
         x = (TAMANO_IMG[0] - (bbox[2] - bbox[0])) // 2
         draw.text((x, y), linea, font=font, fill=COLOR_TEXTO)
         y += bbox[3] + 40
+
     logo = Image.open(LOGO_PATH).convert("RGBA").resize((160, 160))
     img.paste(logo, (TAMANO_IMG[0] - 180, TAMANO_IMG[1] - 180), logo)
-=======
-        draw.text((MARGEN_IZQUIERDO, y), linea, font=font, fill=COLOR_TEXTO)
-        y += draw.textbbox((0, 0), linea, font=font)[3] + 40
-    try:
-        logo = Image.open(LOGO_PATH).convert("RGBA").resize((160, 160))
-        img.paste(logo, (TAMANO_IMG[0] - 180, TAMANO_IMG[1] - 180), logo)
-    except:
-        pass
->>>>>>> parent of f467f5d (Update weekly_cve_carrusel.py)
     draw.rectangle([10, 10, TAMANO_IMG[0] - 10, TAMANO_IMG[1] - 10], outline=COLOR_BORDE, width=4)
     img.save(os.path.join(OUTPUT_DIR, f"{total+1:02d}_summary_slide.png"))
 
@@ -154,20 +130,8 @@ def crear_imagen(texto, index, fecha_publicacion):
         y_text += 40
 
     draw.text((MARGEN_IZQUIERDO, y_text), fecha_publicacion, font=font_fecha, fill=COLOR_TEXTO)
-<<<<<<< HEAD
     logo = Image.open(LOGO_PATH).convert("RGBA").resize(LOGO_SIZE)
     img.paste(logo, (TAMANO_IMG[0] - LOGO_SIZE[0] - MARGEN_DERECHO, TAMANO_IMG[1] - LOGO_SIZE[1] - 20), logo)
-    draw.rectangle([10, 10, TAMANO_IMG[0] - 10, TAMANO_IMG[1] - 10], outline=COLOR_BORDE, width=4)
-    img.save(os.path.join(OUTPUT_DIR, f"{index:02d}_cve_slide.png"))
-
-# (continúa en el siguiente bloque...)
-=======
-
-    try:
-        logo = Image.open(LOGO_PATH).convert("RGBA").resize(LOGO_SIZE)
-        img.paste(logo, (TAMANO_IMG[0] - LOGO_SIZE[0] - 20, TAMANO_IMG[1] - LOGO_SIZE[1] - 20), logo)
-    except:
-        pass
     draw.rectangle([10, 10, TAMANO_IMG[0] - 10, TAMANO_IMG[1] - 10], outline=COLOR_BORDE, width=4)
     img.save(os.path.join(OUTPUT_DIR, f"{index:02d}_cve_slide.png"))
 
@@ -178,7 +142,6 @@ def generar_carrusel():
         return
 
     crear_slide_intro()
-    resumen = []
     scores = []
 
     for i, item in enumerate(cves, start=1):
@@ -205,17 +168,14 @@ def generar_carrusel():
 
     promedio = sum(scores) / len(scores) if scores else 0
     crear_slide_final(len(cves), promedio)
-# Generar PDF con las slides generadas
-    from fpdf import FPDF
+
     imagenes = sorted([f for f in os.listdir(OUTPUT_DIR) if f.endswith(".png")])
     pdf = FPDF(orientation='P', unit='pt', format=[1080, 1080])
     for imagen in imagenes:
         pdf.add_page()
         pdf.image(os.path.join(OUTPUT_DIR, imagen), x=0, y=0, w=1080, h=1080)
-    pdf.output(os.path.join(OUTPUT_DIR, "carrusel_cvEs.pdf"))
+    pdf.output(os.path.join(OUTPUT_DIR, "carrusel_cves.pdf"))
 
-    # Hacer commit y push automático del output generado
-    import subprocess
     try:
         subprocess.run(["git", "config", "--global", "user.name", "github-actions"], check=True)
         subprocess.run(["git", "config", "--global", "user.email", "actions@github.com"], check=True)
@@ -224,15 +184,6 @@ def generar_carrusel():
         subprocess.run(["git", "push"], check=True)
     except Exception as e:
         print("⚠️ Error al hacer push del output:", e)
-# Exportar todas las imágenes generadas como un PDF
-    from fpdf import FPDF
-    imagenes = sorted([f for f in os.listdir(OUTPUT_DIR) if f.endswith(".png")])
-    pdf = FPDF(orientation='P', unit='pt', format=[1080, 1080])
-    for imagen in imagenes:
-        pdf.add_page()
-        pdf.image(os.path.join(OUTPUT_DIR, imagen), x=0, y=0, w=1080, h=1080)
-    pdf.output(os.path.join(OUTPUT_DIR, "carrusel_cvEs.pdf"))
 
 if __name__ == "__main__":
     generar_carrusel()
->>>>>>> parent of f467f5d (Update weekly_cve_carrusel.py)
