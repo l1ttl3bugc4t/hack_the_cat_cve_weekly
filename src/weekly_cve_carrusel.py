@@ -30,7 +30,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 def obtener_cves():
     inicio = hace_7_dias.strftime("%Y-%m-%dT%H:%M:%S.000Z")
     fin = hoy.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-    url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?pubStartDate={inicio}&pubEndDate={fin}&cvssV3Severity=CRITICAL&cvssV3Severity=HIGH"
+    url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?pubStartDate={inicio}&pubEndDate={fin}&cvssV3Severity=CRITICAL&cvssV3Severity=HIGH&cvssV3Severity=MEDIUM"
     headers = {"User-Agent": "HackTheCatBot/1.0"}
     try:
         response = requests.get(url, headers=headers, timeout=10)
