@@ -25,6 +25,5 @@ jobs:
       - name: Generar y publicar carrusel en LinkedIn
         env:
           ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
-          AUTHOR_URN: ${{ secrets.LINKEDIN_AUTHOR_URN }}
         run: |
           python src/weekly_cve_carrusel.py
