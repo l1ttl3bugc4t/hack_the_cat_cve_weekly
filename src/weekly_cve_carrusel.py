@@ -1,5 +1,6 @@
+
 # Hack the Cat - CVE Carrusel Generator 🐱
-# Versión FINAL COMPLETA
+# Versión FINAL CORREGIDA
 
 import requests
 from datetime import datetime, timedelta
@@ -27,8 +28,7 @@ fecha_fin_str = hoy.strftime("%d_%m")
 OUTPUT_DIR = f"output_{fecha_inicio_str}_{fecha_fin_str}"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# === Funciones de generación de contenido ===
-
+# === Funciones ===
 def obtener_cves():
     inicio = hace_7_dias.strftime("%Y-%m-%dT%H:%M:%S.000Z")
     fin = hoy.strftime("%Y-%m-%dT%H:%M:%S.000Z")
@@ -94,98 +94,3 @@ def crear_slide_final(total, promedio):
     img.paste(logo, (TAMANO_IMG[0] - 180, TAMANO_IMG[1] - 180), logo)
     draw.rectangle([10, 10, TAMANO_IMG[0] - 10, TAMANO_IMG[1] - 10], outline=COLOR_BORDE, width=4)
     img.save(os.path.join(OUTPUT_DIR, f"{total+1:02d}_summary_slide.png"))
-
-def crear_imagen(texto, index, fecha_publicacion):
-    img = Image.new("RGB", TAMANO_IMG, COLOR_FONDO)
-    draw = ImageDraw.Draw(img)
-    font_title = ImageFont.truetype(FUENTE, 48)
-    font_body = ImageFont.truetype(FUENTE, 36)
-    font_fecha = ImageFont.truetype(FUENTE, 28)
-
-    secciones = texto.strip().split("\n\n")
-    bloques = []
-    total_height = 0
-
-    for i, bloque in enumerate(secciones):
-        font = font_title if i == 0 else font_body
-        lineas = textwrap.wrap(bloque, width=66)
-        bloque_lines = []
-        for linea in lineas:
-            bbox = draw.textbbox((0, 0), linea, font=font)
-            height = bbox[3] - bbox[1]
-            bloque_lines.append((linea, font, height))
-            total_height += height + 16
-        total_height += 40
-        bloques.append(bloque_lines)
-
-    bbox_fecha = draw.textbbox((0, 0), fecha_publicacion, font=font_fecha)
-    total_height += bbox_fecha[3] - bbox_fecha[1] + 20
-
-    y_text = (TAMANO_IMG[1] - total_height) // 2
-
-    for bloque in bloques:
-        for line, font, height in bloque:
-            draw.text((MARGEN_IZQUIERDO, y_text), line, font=font, fill=COLOR_TEXTO)
-            y_text += height + 16
-        y_text += 40
-
-    draw.text((MARGEN_IZQUIERDO, y_text), fecha_publicacion, font=font_fecha, fill=COLOR_TEXTO)
-    logo = Image.open(LOGO_PATH).convert("RGBA").resize(LOGO_SIZE)
-    img.paste(logo, (TAMANO_IMG[0] - LOGO_SIZE[0] - MARGEN_DERECHO, TAMANO_IMG[1] - LOGO_SIZE[1] - 20), logo)
-    draw.rectangle([10, 10, TAMANO_IMG[0] - 10, TAMANO_IMG[1] - 10], outline=COLOR_BORDE, width=4)
-    img.save(os.path.join(OUTPUT_DIR, f"{index:02d}_cve_slide.png"))
-
-def generar_carrusel():
-    cves = obtener_cves()
-    if not cves:
-        print("⚠️ No se encontraron CVEs para esta semana.")
-        return
-
-    crear_slide_intro()
-    scores = []
-
-    for i, item in enumerate(cves, start=1):
-        cve = item["cve"]
-        cve_id = cve["id"]
-        desc = cve["descriptions"][0]["value"]
-        desc = desc if len(desc) <= 400 else desc[:397] + "..."
-        score_data = cve.get("metrics", {}).get("cvssMetricV31", [{}])[0].get("cvssData", {})
-        score = score_data.get("baseScore", 0)
-        severity = score_data.get("baseSeverity", "N/A")
-        vector = score_data.get("vectorString", "N/A")
-        cwe = cve.get("weaknesses", [{}])[0].get("description", [{}])[0].get("value", "N/A")
-        tech = ", ".join([
-            cpe.get("criteria", "").split(":")[4]
-            configurations = cve.get("configurations", {})
-            nodes = configurations.get("nodes", []) if isinstance(configurations, dict) else []
-            for node in nodes:
-            for cpe in node.get("cpeMatch", [])
-        ]) or "No especificado"
-        published = item.get("published") or cve.get("published") or "Fecha no disponible"
-        published = published[:10]
-
-        texto = f"{cve_id}\n\nDescripción: {desc}\n\nCVSS: {score} ({severity})\n\nVector: {vector}\n\nTipo: {cwe}\n\nTecnología: {tech}"
-        crear_imagen(texto, i, f"Publicado el: {published}")
-        scores.append(score if isinstance(score, (int, float)) else 0)
-
-    promedio = sum(scores) / len(scores) if scores else 0
-    crear_slide_final(len(cves), promedio)
-
-    imagenes = sorted([f for f in os.listdir(OUTPUT_DIR) if f.endswith(".png")])
-    pdf = FPDF(orientation='P', unit='pt', format=[1080, 1080])
-    for imagen in imagenes:
-        pdf.add_page()
-        pdf.image(os.path.join(OUTPUT_DIR, imagen), x=0, y=0, w=1080, h=1080)
-    pdf.output(os.path.join(OUTPUT_DIR, "carrusel_cves.pdf"))
-
-    try:
-        subprocess.run(["git", "config", "--global", "user.name", "github-actions"], check=True)
-        subprocess.run(["git", "config", "--global", "user.email", "actions@github.com"], check=True)
-        subprocess.run(["git", "add", OUTPUT_DIR], check=True)
-        subprocess.run(["git", "commit", "-m", "📤 Auto: Añadir carrusel semanal de CVEs"], check=True)
-        subprocess.run(["git", "push"], check=True)
-    except Exception as e:
-        print("⚠️ Error al hacer push del output:", e)
-
-if __name__ == "__main__":
-    generar_carrusel()
