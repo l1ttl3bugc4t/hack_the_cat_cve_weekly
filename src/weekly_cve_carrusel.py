@@ -177,7 +177,7 @@ def postear_en_linkedin():
                         "relationshipType": "OWNER"
                     }
                 ],
-                "owner": AUTHOR_URN if AUTHOR_URN else None
+                "owner": AUTHOR_URN if AUTHOR_URN else "urn:li:person:me"
             }
         }
         body = {k: v for k, v in body.items() if v is not None}
