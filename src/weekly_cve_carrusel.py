@@ -1,5 +1,3 @@
-# Hack the Cat - CVE Carrusel Generator 🐱
-# Generador completo de slides + publicación automática en LinkedIn
 
 import requests
 from datetime import datetime, timedelta
@@ -10,7 +8,7 @@ import os
 import subprocess
 import time
 
-# Configuración general
+# === Configuración General ===
 FUENTE = "assets/Karla.ttf"
 LOGO_PATH = os.path.abspath("assets/hack_the_cat_logo_resized.png")
 COLOR_TEXTO = (0, 255, 0)
@@ -21,7 +19,6 @@ MARGEN_IZQUIERDO = 60
 MARGEN_DERECHO = 60
 LOGO_SIZE = (120, 120)
 
-# Fechas
 hoy = datetime.utcnow()
 hace_7_dias = hoy - timedelta(days=7)
 fecha_inicio_str = hace_7_dias.strftime("%d_%m")
@@ -136,16 +133,23 @@ def crear_imagen(texto, index, fecha_publicacion):
     draw.rectangle([10, 10, TAMANO_IMG[0] - 10, TAMANO_IMG[1] - 10], outline=COLOR_BORDE, width=4)
     img.save(os.path.join(OUTPUT_DIR, f"{index:02d}_cve_slide.png"))
 
+# (continúa: funciones de posteo y main)
+
+
 def postear_en_linkedin():
     import requests
+    import os
     import time
 
     ACCESS_TOKEN = os.getenv('ACCESS_TOKEN')
     AUTHOR_URN = os.getenv('AUTHOR_URN')
 
-    if not ACCESS_TOKEN or not AUTHOR_URN:
-        print("❌ Faltan variables de entorno ACCESS_TOKEN o AUTHOR_URN.")
+    if not ACCESS_TOKEN:
+        print("❌ Falta variable de entorno ACCESS_TOKEN.")
         return
+
+    if not AUTHOR_URN:
+        print("⚠️ Advertencia: No se encontró AUTHOR_URN, se usará el perfil asociado al Access Token.")
 
     imagenes = sorted([
         os.path.join(OUTPUT_DIR, img)
@@ -157,7 +161,7 @@ def postear_en_linkedin():
         print("⚠️ No hay imágenes para postear en LinkedIn.")
         return
 
-    def registrar_upload(access_token, author_urn):
+    def registrar_upload(access_token):
         url = "https://api.linkedin.com/v2/assets?action=registerUpload"
         headers = {
             "Authorization": f"Bearer {access_token}",
@@ -166,16 +170,17 @@ def postear_en_linkedin():
         }
         body = {
             "registerUploadRequest": {
-                "owner": author_urn,
                 "recipes": ["urn:li:digitalmediaRecipe:feedshare-image"],
                 "serviceRelationships": [
                     {
                         "identifier": "urn:li:userGeneratedContent",
                         "relationshipType": "OWNER"
                     }
-                ]
+                ],
+                "owner": AUTHOR_URN if AUTHOR_URN else None
             }
         }
+        body = {k: v for k, v in body.items() if v is not None}
         response = requests.post(url, headers=headers, json=body)
         if response.status_code == 200:
             upload_info = response.json()
@@ -192,7 +197,7 @@ def postear_en_linkedin():
         if response.status_code not in [200, 201]:
             raise Exception(f"❌ Error al subir imagen: {response.status_code} {response.text}")
 
-    def publicar_carrusel(access_token, author_urn, asset_list, texto_post):
+    def publicar_carrusel(access_token, asset_list):
         url = "https://api.linkedin.com/v2/ugcPosts"
         headers = {
             "Authorization": f"Bearer {access_token}",
@@ -201,11 +206,11 @@ def postear_en_linkedin():
         }
         media = [{"status": "READY", "media": asset} for asset in asset_list]
         payload = {
-            "author": author_urn,
+            "author": AUTHOR_URN if AUTHOR_URN else "urn:li:person:me",
             "lifecycleState": "PUBLISHED",
             "specificContent": {
                 "com.linkedin.ugc.ShareContent": {
-                    "shareCommentary": {"text": texto_post},
+                    "shareCommentary": {"text": "🚀 ¡Nuevo resumen semanal de CVEs presentado por Hack the Cat! 🐱💻 #HackTheCat #CyberSecurity #CVEs"},
                     "shareMediaCategory": "IMAGE",
                     "media": media
                 }
@@ -224,20 +229,20 @@ def postear_en_linkedin():
     asset_ids = []
     for img_path in imagenes:
         print(f"🔵 Registrando y subiendo: {img_path}")
-        upload_url, asset = registrar_upload(ACCESS_TOKEN, AUTHOR_URN)
+        upload_url, asset = registrar_upload(ACCESS_TOKEN)
         subir_imagen(upload_url, img_path)
         asset_ids.append(asset)
         time.sleep(1)
 
     print("🟣 Publicando carrusel en LinkedIn...")
-    texto_post = "🚀 ¡Ya está disponible el resumen semanal de CVEs! 🔥\n\n#HackTheCat #Ciberseguridad #CVEs"
-    publicar_carrusel(ACCESS_TOKEN, AUTHOR_URN, asset_ids, texto_post)
+    publicar_carrusel(ACCESS_TOKEN, asset_ids)
 
-def generar_carrusel():
+# === MAIN ===
+if __name__ == "__main__":
     cves = obtener_cves()
     if not cves:
         print("⚠️ No se encontraron CVEs para esta semana.")
-        return
+        exit(0)
 
     crear_slide_intro()
     resumen = []
@@ -253,13 +258,16 @@ def generar_carrusel():
         severity = score_data.get("baseSeverity", "N/A")
         vector = score_data.get("vectorString", "N/A")
         cwe = cve.get("weaknesses", [{}])[0].get("description", [{}])[0].get("value", "N/A")
+
         configurations = cve.get("configurations", {})
         nodes = configurations.get("nodes", []) if isinstance(configurations, dict) else []
+
         tech = ", ".join([
             cpe.get("criteria", "").split(":")[4]
             for node in nodes
             for cpe in node.get("cpeMatch", [])
         ]) or "No especificado"
+
         published = item.get("published") or cve.get("published") or "Fecha no disponible"
         published = published[:10]
 
@@ -287,6 +295,3 @@ def generar_carrusel():
         print("⚠️ Error al hacer push del output:", e)
 
     postear_en_linkedin()
-
-if __name__ == "__main__":
-    generar_carrusel()
