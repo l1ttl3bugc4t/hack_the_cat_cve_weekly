@@ -1,0 +1,30 @@
+name: Publicar CVEs Semanales en LinkedIn 🚀
+
+on:
+  schedule:
+    - cron: "0 16 * * 2"  # Todos los martes a las 10:00AM (México)
+  workflow_dispatch:      # Permite ejecutarlo manualmente también
+
+jobs:
+  post-to-linkedin:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clonar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          pip install -r src/requirements.txt
+
+      - name: Generar y publicar carrusel en LinkedIn
+        env:
+          ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+          AUTHOR_URN: ${{ secrets.LINKEDIN_AUTHOR_URN }}
+        run: |
+          python src/weekly_cve_carrusel.py
